@@ -1,0 +1,568 @@
+<html>
+
+<head>
+    <meta charset=utf-8>
+    <title>Find figure</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000000;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 100px;
+            width: 100%;
+            height: 100%
+        }
+    </style>
+</head>
+
+<div id='gameTask' style="position: absolute; text-align: center; width: 0px; height: 0px; background-color: #00000030gfgdfdf; font-size: 0px; color: white; top: 0px; left: 0px;">
+    Find
+</div>
+
+<div id='gameTimer' style="position: absolute; text-align: center; width: 0px; height: 0px; background-color: #00000030gfgdfdf; font-size: 0px; color: white; top: 0px; left: 0px;">
+    Time
+</div>
+
+<div id='gameRoundInfo' style="position: absolute; text-align: left; width: 0px; height: 0px; background-color: #00000030gfgdfdf; font-size: 0px; color: white; top: 0px; left: 0px;">
+    Round
+</div>
+
+<div id='gameScoreInfo' style="position: absolute; text-align: right; width: 0px; height: 0px; background-color: #00000030gfgdfdf; font-size: 0px; color: white; top: 0px; left: 0px;">
+    Score
+</div>
+
+<button id='restartButton' style="visibility: hidden; transform: translate(-50%, 0); width: 180px; font-size: 50px; position: absolute; top: 2% ; left: 38%;"> 
+	Restart
+</button></p>
+
+<button id='quitButton' style="visibility: hidden; transform: translate(-50%, 0); width: 180px; font-size: 50px; position: absolute; top: 2% ; left: 62%;"> 
+	Quit
+</button></p>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r83/three.js"></script>
+    <script>
+        var sceneSize = {
+            x: 1920,
+            y: 730,
+            ratio: 0.0
+        }
+        sceneSize.ratio = sceneSize.x / sceneSize.y;
+        var rendererSize = {
+            x: window.innerWidth,
+            y: window.innerWidth / sceneSize.ratio
+        }
+
+
+
+        var scene = new THREE.Scene();
+        //~ var camera = new THREE.OrthographicCamera( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, 0, 1000);
+        var camera = new THREE.OrthographicCamera(sceneSize.x / -2, sceneSize.x / 2, sceneSize.y / 2, sceneSize.y / -2, 0, 1000);
+        //~ var camera = new THREE.PerspectiveCamera( 30, sceneSize.ratio, 0.1, 10000);
+        var gameTask = document.getElementById('gameTask');
+        var gameTimer = document.getElementById('gameTimer');
+        var gameRoundInfo = document.getElementById('gameRoundInfo');
+        var gameScoreInfo = document.getElementById('gameScoreInfo');
+        var restartButton = document.getElementById('restartButton');
+        var quitButton = document.getElementById('quitButton');
+        var roundTime;
+        var gameScore = 0;
+        var currentRound = 0;
+        var url = document.location.href;
+        var gameDifficulty = url.split('?')[1];
+        var maxRoundTime;
+        var numFigures;
+        var timeScore = 0;
+        var bonusRate;
+
+
+        switch (gameDifficulty) {
+            case 'Easy':
+                numFigures = 12;
+                maxRoundTime = 120.0;
+                bonusRate = 20;
+                break;
+            case 'Medium':
+                numFigures = 18;
+                maxRoundTime = 80.0;
+                bonusRate = 40;
+                break;
+            case 'Hard':
+                numFigures = 24;
+                maxRoundTime = 50.0;
+                bonusRate = 100;
+                break;
+
+            default:
+                numFigures = 18;
+                maxRoundTime = 80.0;
+                bonusRate = 40;
+                break;
+        }
+
+
+        const lightColor = 0xffffff;
+        const lightIntensity = 1;
+        const Light = new THREE.DirectionalLight(lightColor, lightIntensity);
+        Light.position.set(0, 0, 500);
+        Light.target.position.set(0, 0, -500);
+        scene.add(Light);
+        scene.add(Light.target);
+
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(rendererSize.x, rendererSize.y);
+        document.body.appendChild(renderer.domElement);
+        document.addEventListener('click', getMousePosition);
+        restartButton.addEventListener('click', restartGame);
+        quitButton.addEventListener('click', quitGame);
+
+
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xff0000
+        });
+        var circleGeometry = new THREE.CircleGeometry(50, 30);
+        var cubeGeometry = new THREE.BoxGeometry(80, 80, 80);
+        var triangleGeometry = new THREE.CircleGeometry(60, 3);
+        var squareGeometry = new THREE.Geometry();
+        squareGeometry.vertices.push(new THREE.Vector3(-50, -50, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(-50, 50, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(50, 50, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(50, -50, 0));
+        squareGeometry.faces.push(new THREE.Face3(0, 3, 2));
+        squareGeometry.faces.push(new THREE.Face3(0, 2, 1));
+        var rhombusGeometry = new THREE.Geometry();
+        rhombusGeometry.vertices.push(new THREE.Vector3(0, -70, 0));
+        rhombusGeometry.vertices.push(new THREE.Vector3(-40, 0, 0));
+        rhombusGeometry.vertices.push(new THREE.Vector3(0, 70, 0));
+        rhombusGeometry.vertices.push(new THREE.Vector3(40, 0, 0));
+        rhombusGeometry.faces.push(new THREE.Face3(0, 3, 2));
+        rhombusGeometry.faces.push(new THREE.Face3(0, 2, 1));
+
+
+        var figureForms = [
+            'square',
+            'circle',
+            'cube',
+            'triangle',
+            'rhombus'
+        ];
+        var figureColors = [
+            'red',
+            'green',
+            'white',
+            'blue',
+            'yellow',
+            'cyan'
+        ];
+        var matherials = [
+            0xff0000,
+            0x00ff00,
+            0xffffff,
+            0x0000ff,
+            0xffff00,
+            0x00ffff
+        ]
+        var figureMovement = [
+            'motionless',
+            'jumping',
+            'flying',
+            'rotating'
+        ];
+
+
+
+        var figures = [];
+        var taskSet = [];
+        generateTaskSet();
+
+        for (var i = 0; i < numFigures; i++) {
+            figures[i] = {
+                x: 0.0,
+                y: 0.0,
+                form: 0,
+                color: 0,
+                movement: 0,
+                speed: 0.0,
+                angle: 0,
+                material: 0,
+                mesh: 0,
+            }
+        }
+
+
+        var roundTask = {
+            movement: 0,
+            color: 0,
+            form: 0
+        }
+
+        var roundTimerId = setInterval(roundTimer, 100);
+        generateFigures(figures);
+        for (var i = 0; i < numFigures; i++) scene.add(figures[i].mesh);
+        rescaleTextInfo();
+        generateTask();
+        window.addEventListener('resize', onWindowResize, false);
+
+
+        camera.position.z = 500;
+
+        function render() {
+            processFigures(figures);
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+
+        }
+        render();
+
+
+        //----------------------------------------------------------------------		
+
+        function restartGame() {
+
+            for (var i = 0; i < numFigures; i++) {
+                temp = false;
+                for (var j = 0; j < 5; j++)
+                    if (taskSet[j].figureNumber == i) temp = true;
+                if (temp) scene.remove(figures[i].mesh);
+            }
+
+            gameScore = 0;
+            timeScore = 0;
+            currentRound = 0;
+            gameTimer.style.color = '#00ff00';
+            generateTaskSet();
+            generateFigures(figures);
+            for (var i = 0; i < numFigures; i++) scene.add(figures[i].mesh);
+            generateTask();
+
+            document.addEventListener('click', getMousePosition);
+            roundTimerId = setInterval(roundTimer, 100);
+            gameTimer.style.visibility = 'visible';
+            restartButton.style.visibility = 'hidden';
+            quitButton.style.visibility = 'hidden';
+
+        }
+
+        function quitGame() {
+            window.location = "/game";
+
+        }
+
+        function roundTimer() {
+            roundTime -= 1;
+            var timerText = roundTime / 10;
+            gameTimer.innerHTML = 'Time: ' + timerText.toFixed(1);
+            if (roundTime <= 30) gameTimer.style.color = '#ff0000';
+            else if (roundTime <= 60) gameTimer.style.color = '#ffff00';
+            if (roundTime <= 0) {
+                generateTask();
+                currentRound++;
+                if (currentRound <= 4) generateTask();
+                else stopGame();
+            }
+        }
+
+        function generateTask() {
+            var currentFigure = taskSet[currentRound].figureNumber; //getRandomInt(0, numFigures - 1);
+            roundTask.form = figures[currentFigure].form;
+            roundTask.color = figures[currentFigure].color;
+            roundTask.movement = figures[currentFigure].movement;
+
+            roundTime = maxRoundTime;
+            gameTask.innerHTML = 'Find' + ' ' + figureMovement[roundTask.movement] + ' ' + figureColors[roundTask.color] + ' ' + figureForms[roundTask.form];
+            var timerText = roundTime / 10;
+            gameTimer.innerHTML = 'Time: ' + timerText.toFixed(1);
+            gameTimer.style.color = '#00ff00';
+            gameRoundInfo.innerHTML = 'Round: ' + (currentRound + 1) + '/5';
+            gameScoreInfo.innerHTML = 'Score: ' + gameScore;
+
+        }
+
+        function onWindowResize() {
+            renderer.setPixelRatio(window.devicePixelRatio);
+            rendererSize.x = window.innerWidth;
+            rendererSize.y = window.innerWidth / sceneSize.ratio;
+            renderer.setSize(rendererSize.x, rendererSize.y);
+            rescaleTextInfo();
+        }
+
+        function getMousePosition(event) {
+
+            var sMouseX = ((event.pageX) / rendererSize.x - 0.5) * sceneSize.x;
+            var sMouseY = -((event.pageY - 100) / rendererSize.y - 0.5) * sceneSize.y;
+
+            for (var i = 0; i < numFigures; i++) {
+                if (sMouseX >= (figures[i].x - 80) && sMouseX <= (figures[i].x + 80) && sMouseY >= (figures[i].y - 80) && sMouseY <= (figures[i].y + 80)) {
+                    if (roundTask.form == figures[i].form && roundTask.color == figures[i].color && roundTask.movement == figures[i].movement) {
+                        timeScore += bonusRate * roundTime / maxRoundTime;
+                        taskSet[currentRound].complete = true;
+                    }
+
+                    if (currentRound < 4) {
+                        currentRound++;
+                        generateTask();
+                    } else stopGame();
+                }
+
+            }
+        }
+
+        function stopGame() {
+            clearInterval(roundTimerId);
+            document.removeEventListener('click', getMousePosition);
+            var temp;
+            var roundsWon = 0;
+
+            gameTask.innerHTML = '';
+            gameTimer.style.visibility = 'hidden';
+            restartButton.style.visibility = 'visible';
+            quitButton.style.visibility = 'visible';
+
+            for (var i = 0; i < numFigures; i++) {
+                temp = false;
+                for (var j = 0; j < 5; j++)
+                    if (taskSet[j].figureNumber == i) temp = true;
+                if (!temp) scene.remove(figures[i].mesh);
+
+            }
+
+            for (var i = 0; i < 5; i++)
+                if (taskSet[i].complete) {
+                    gameScore += bonusRate;
+                    roundsWon++;
+                }
+
+            timeScore = Math.floor(timeScore / 10) * 10;
+            gameScore += timeScore;
+            gameScoreInfo.innerHTML = 'Score: ' + gameScore;
+
+            increaseStorageValue('gamesPlayed', 1);
+            increaseStorageValue('totalScore', gameScore);
+            increaseStorageValue('roundsWon', roundsWon);
+            var record = getLocalStorageValue('maxScore');
+            if (record < gameScore) setLocalStorageValue('maxScore', gameScore);
+        }
+
+
+        function rescaleTextInfo() {
+            gameTask.style.width = window.innerWidth;
+            gameTask.style.height = 50;
+            gameTask.style.fontSize = 50 + 'px';
+            gameTask.style.top = 125 + rendererSize.y + 'px';
+            gameTask.style.left = 0 + 'px';
+
+            gameTimer.style.width = window.innerWidth;
+            gameTimer.style.height = 50;
+            gameTimer.style.fontSize = 50 + 'px';
+            gameTimer.style.top = 25 + 'px'; //800 + 'px';
+            gameTimer.style.left = 0 + 'px';
+
+            gameRoundInfo.style.width = window.innerWidth;
+            gameRoundInfo.style.height = 50;
+            gameRoundInfo.style.fontSize = 50 + 'px';
+            gameRoundInfo.style.top = 25 + 'px'; //800 + 'px';
+            gameRoundInfo.style.left = 0 + 'px';
+
+            gameScoreInfo.style.width = window.innerWidth;
+            gameScoreInfo.style.height = 50;
+            gameScoreInfo.style.fontSize = 50 + 'px';
+            gameScoreInfo.style.top = 25 + 'px'; //800 + 'px';
+            gameScoreInfo.style.left = 0 + 'px';
+
+        }
+
+        function generateTaskSet() {
+            var completeTaskArray = [];
+            var currentTask;
+
+            for (var i = 0; i < numFigures; i++) completeTaskArray.push(i);
+
+            for (var i = 0; i < 5; i++) {
+
+                currentTask = getRandomInt(0, numFigures - i - 1);
+
+                taskSet[i] = {
+                    figureNumber: completeTaskArray[currentTask],
+                    complete: false
+                };
+                completeTaskArray.splice(currentTask, 1);
+
+
+            }
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getRandomFloat(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+
+
+        function generateFigures(obj) {
+
+            var yCord, xCord1, xCord2;
+
+            var completeFiguresArray = [];
+            var ramdomFigure;
+
+            for (var i = 0; i < figureForms.length; i++) {
+                for (var j = 0; j < figureColors.length; j++) {
+                    for (var k = 0; k < figureMovement.length; k++) {
+                        if (!(i == 1 && k == 3)) completeFiguresArray.push({
+                            f: i,
+                            c: j,
+                            m: k
+                        });
+                    }
+                }
+            }
+
+            if (numFigures <= 12) {
+                xCord1 = 75 - (numFigures * 150 / 2);
+                yCord = 0;
+            } else {
+                xCord1 = 75 - (12 * 150 / 2);
+                xCord2 = 75 - ((numFigures - 12) * 150 / 2);
+                yCord = 175;
+            }
+
+            for (var i = 0; i < numFigures; i++) {
+
+                if (i > 11) yCord = -175;
+                obj[i].x = xCord1;
+
+                randomFigure = getRandomInt(0, completeFiguresArray.length - 1);
+                obj[i].form = completeFiguresArray[randomFigure].f;
+                obj[i].color = completeFiguresArray[randomFigure].c;
+                obj[i].movement = completeFiguresArray[randomFigure].m;
+                completeFiguresArray.splice(randomFigure, 1);
+
+                switch (obj[i].form) {
+                    case 0:
+                        obj[i].mesh = new THREE.Mesh(squareGeometry, new THREE.MeshBasicMaterial({
+                            color: matherials[obj[i].color]
+                        }));
+                        break;
+                    case 1:
+                        obj[i].mesh = new THREE.Mesh(circleGeometry, new THREE.MeshBasicMaterial({
+                            color: matherials[obj[i].color]
+                        }));
+                        break;
+                    case 2:
+                        obj[i].mesh = new THREE.Mesh(cubeGeometry, new THREE.MeshPhongMaterial({
+                            color: matherials[obj[i].color]
+                        }));
+                        obj[i].mesh.rotation.x = Math.PI / 4;
+                        obj[i].mesh.rotation.y = Math.PI / 8;
+                        break;
+                    case 3:
+                        obj[i].mesh = new THREE.Mesh(triangleGeometry, new THREE.MeshBasicMaterial({
+                            color: matherials[obj[i].color]
+                        }));
+                        obj[i].mesh.rotation.z = -Math.PI / 6;
+                        break;
+                    case 4:
+                        obj[i].mesh = new THREE.Mesh(rhombusGeometry, new THREE.MeshBasicMaterial({
+                            color: matherials[obj[i].color]
+                        }));
+                        break;
+                }
+
+                switch (obj[i].movement) {
+                    case 0:
+                        obj[i].y = yCord;
+                        break;
+                    case 1:
+                        obj[i].y = getRandomInt(yCord, yCord + 100);
+                        obj[i].speed = -1;
+                        break;
+                    case 2:
+                        obj[i].y = yCord + 100;
+                        obj[i].angle = getRandomFloat(0, Math.PI);
+                        break;
+                    case 3:
+                        obj[i].y = yCord;
+                        obj[i].speed = (getRandomInt(0, 1) ? 1 : -1) * getRandomFloat(0.2, 1.0);
+                        break;
+
+                }
+
+                obj[i].mesh.position.x = obj[i].x;
+                obj[i].mesh.position.y = obj[i].y;
+                xCord1 += 150;
+                if (xCord1 >= 960) xCord1 = xCord2;
+            }
+        }
+
+
+
+        function processFigures(obj) {
+            var yCord;
+
+            if (numFigures <= 12) yCord = 0;
+            else yCord = 175;
+
+            for (var i = 0; i < numFigures; i++) {
+                if (i > 11) yCord = -175;
+
+                switch (obj[i].movement) {
+                    case 0:
+                        break;
+                    case 1:
+                        obj[i].y += obj[i].speed;
+                        //~ obj[i].y = Math.floor(obj[i].y);
+
+                        obj[i].speed -= 0.5;
+                        if (obj[i].y < (yCord - 100)) {
+                            obj[i].speed = -(obj[i].speed + 0.5);
+                        }
+                        obj[i].mesh.position.y = obj[i].y;
+                        break;
+                    case 2:
+                        obj[i].y = yCord + 100 + Math.sin(obj[i].angle) * 10;
+                        obj[i].angle += 0.1;
+                        obj[i].mesh.position.y = obj[i].y;
+                        break;
+                    case 3:
+                        if (obj[i].form == 2) {
+                            obj[i].mesh.rotation.x += 0.02 * obj[i].speed;
+                            obj[i].mesh.rotation.y += 0.04 * obj[i].speed;
+                            obj[i].mesh.rotation.x += 0.06 * obj[i].speed;
+                        } else obj[i].mesh.rotation.z += 0.05 * obj[i].speed;
+                        break;
+                }
+            }
+        }
+
+        function increaseStorageValue(str, value) {
+            var result = getLocalStorageValue(str);
+            result += value;
+            setLocalStorageValue(str, result);
+        }
+
+        function getLocalStorageValue(str) {
+            var tempStr = localStorage.getItem(str);
+            var tempInt;
+            if (tempStr == null) {
+                totalScoreValue = '0';
+                localStorage.setItem(str, totalScoreValue);
+                tempStr = localStorage.getItem(str);
+            }
+
+            tempInt = parseInt(tempStr);
+            console.log(str + ' = ' + tempInt);
+            return tempInt;
+        }
+
+        function setLocalStorageValue(str, value) {
+            var temp = String(value);
+            localStorage.setItem(str, value);
+        }
+    </script>
+</body>

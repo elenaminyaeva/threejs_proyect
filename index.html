@@ -1,0 +1,92 @@
+<html>
+
+<head>
+    <title>Game</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <form>
+                <div style="display: table-row">
+                    <label for="select" style="display: table-cell; width: 250px;">Choose level</label>
+                    <select id='difficulty' style="display: table-cell; margin-bottom: 10px;">
+						<option>Easy</option>
+						<option>Medium</option>
+						<option>Hard</option>
+					</select>
+                </div>
+
+                <div style="display: table-row">
+                    <label for="button" style="display: table-cell; width: 250px;">Click to start</label>
+                    <input value="GO" type="button" id='startButton' style="display: table-cell " />
+                </div>
+
+                <label style="display: table-cell; width: 250px;">Your statistics:</label>
+
+                <div style="display: table-row">
+                    <label style="display: table-cell; width: 250px;">Total score:</label>
+                    <label id='totalScoreLabel' style="display: table-cell; width: 250px;">0</label>
+                </div>
+
+                <div style="display: table-row">
+                    <label style="display: table-cell; width: 250px;">Game record:</label>
+                    <label id='maxScoreLabel' style="display: table-cell; width: 250px;">0</label>
+                </div>
+
+                <div style="display: table-row">
+                    <label style="display: table-cell; width: 250px;">Played games:</label>
+                    <label id='gamesPlayedLabel' style="display: table-cell; width: 250px;">0</label>
+                </div>
+
+                <div style="display: table-row">
+                    <label style="display: table-cell; width: 250px;">Correct answers:</label>
+                    <label id='roundsWonLabel' style="display: table-cell; width: 250px;">0</label>
+                </div>
+            </form>
+            <form action="/logout?_method=DELETE" method="POST">
+
+                <button type="submit" id="login-button" style="width: 250px; height: 50px; align-items: center;"><input type="button" style="width: 100px; height: 50px;" value="Logout" onclick="Clear()"></button>
+            </form>
+
+            <script type="text/javascript">
+                function Clear() {
+                    window.localStorage.clear();
+                }
+            </script>
+
+            <script>
+                var totalScore = getLocalStorageValue('totalScore');
+                var maxScore = getLocalStorageValue('maxScore');
+                var gamesPlayed = getLocalStorageValue('gamesPlayed');
+                var roundsWon = getLocalStorageValue('roundsWon');
+
+                totalScoreLabel.innerHTML = totalScore;
+                maxScoreLabel.innerHTML = maxScore;
+                gamesPlayedLabel.innerHTML = gamesPlayed;
+                roundsWonLabel.innerHTML = roundsWon;
+
+                startButton.onclick = function() {
+                    var difficulty = document.getElementById('difficulty');
+                    var url = 'gameJS.html?' + difficulty.options[difficulty.selectedIndex].value;
+                    document.location.href = url;
+                }
+
+                function getLocalStorageValue(str) {
+                    var tempStr = localStorage.getItem(str);
+                    var tempInt;
+                    if (tempStr == null) {
+                        totalScoreValue = '0';
+                        localStorage.setItem(str, totalScoreValue);
+                        tempStr = localStorage.getItem(str);
+                    }
+
+                    tempInt = parseInt(tempStr);
+                    console.log(str + ' = ' + tempInt);
+                    return tempInt;
+                }
+            </script>
+        </div>
+    </div>
+</body>
