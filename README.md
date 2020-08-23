@@ -488,4 +488,4 @@ function getLocalStorageValue(str) {
 
 ## Demo
 
-![DEMO](/demo/demo.mp4)
+[Click here to dowload the video](/demo/demo.mp4)
